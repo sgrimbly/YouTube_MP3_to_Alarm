@@ -1,9 +1,47 @@
 import argparse
 import yt_dlp as youtube_dl
 from pydub import AudioSegment
+import re
+import os 
+
+def sanitize_filename(filename):
+    """
+    Sanitize the filename by removing or replacing characters that are not allowed in filenames.
+    """
+    # Define a set of allowed characters (alphanumeric, spaces, and hyphens)
+    allowed_characters = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -_")
+
+    # Replace unallowed characters with an underscore
+    sanitized_filename = ''.join(c if c in allowed_characters else '_' for c in filename)
+
+    # Further sanitize filename using regex to handle edge cases
+    sanitized_filename = re.sub(r'(?u)[^-\w.]', '', sanitized_filename)
+
+    # Avoid extremely long filenames
+    max_length = 255
+    if len(sanitized_filename) > max_length:
+        # Truncate the name, not counting the extension
+        file_root, file_extension = os.path.splitext(sanitized_filename)
+        file_root = file_root[:max_length - len(file_extension)]
+        sanitized_filename = file_root + file_extension
+
+    return sanitized_filename
 
 def download_audio(url, output_format='mp3', quality='192'):
     """Download audio from YouTube URL and extract audio in the specified format."""
+    
+    # Temporary ydl_opts without 'outtmpl' to fetch the video's title
+    temp_ydl_opts = {}
+    
+    with youtube_dl.YoutubeDL(temp_ydl_opts) as ydl:
+        # We only want to extract the information without downloading the video
+        info_dict = ydl.extract_info(url, download=False)
+        video_title = info_dict.get('title', None)
+
+    # Sanitize the filename to make it filesystem safe
+    sanitized_title = sanitize_filename(video_title)
+    
+    # Define ydl options with 'outtmpl' using the sanitized title
     ydl_opts = {
         'format': 'bestaudio/best',
         'postprocessors': [{
@@ -11,14 +49,22 @@ def download_audio(url, output_format='mp3', quality='192'):
             'preferredcodec': output_format,
             'preferredquality': quality,
         }],
-        'outtmpl': 'downloaded_audio.' + output_format,  # set filename
+        # Use the sanitized title as the template for the output filename
+        'outtmpl': f"{sanitized_title}.%(ext)s",  
     }
 
     with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+        # This time, we proceed with the actual download since we've set the correct 'outtmpl'
         ydl.download([url])
 
-    return 'downloaded_audio.' + output_format
+    # Construct the filename using the sanitized title and the expected extension
+    filename = f"{sanitized_title}.{output_format}"
 
+    # Verify the file exists, especially if there were special characters or length issues
+    if not os.path.isfile(filename):
+        raise Exception(f"Expected file '{filename}' doesn't exist. The filename might have been altered during download.")
+
+    return filename  # return the sanitized filename
 
 def clip_audio(file_path, start_time, end_time, output_file):
     """Clip the audio file based on start and end times, and save it to the output file."""
