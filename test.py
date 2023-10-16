@@ -1,7 +1,7 @@
 import os
 import unittest
 from pydub import AudioSegment
-from yt_alarm_maker import clip_audio  # Make sure yt_alarm_maker.py is in the same directory or is installable
+from audio_extractor import clip_audio
 
 class TestYTAlarmMaker(unittest.TestCase):
 
