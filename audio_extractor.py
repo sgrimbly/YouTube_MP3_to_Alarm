@@ -34,13 +34,21 @@ def clip_audio(file_path, start_time, end_time, output_file):
     # save the clipped audio
     clipped_audio.export(output_file, format=file_path.split('.')[-1])
 
+def convert_to_ringtone(file_path, output_file):
+    """Convert the mp3 file to an iPhone-compatible ringtone format (.m4r)."""
+    # Load the mp3 file
+    audio = AudioSegment.from_file(file_path, format="mp3")
+
+    # Export the audio in .m4r format
+    audio.export(output_file, format="mp4")  # .m4r is a subset of the MPEG-4 format
+
 
 def main():
-    """The main function handling argument parsing and initiating processing."""
-    parser = argparse.ArgumentParser(description='Download audio from a YouTube video and clip a specified segment.')
+    parser = argparse.ArgumentParser(description='Download audio from a YouTube video, clip a specified segment, and optionally convert it to iPhone ringtone format.')
     parser.add_argument('url', help='The URL of the YouTube video')
     parser.add_argument('start_time', help="The start time of the clip in the format 'mm:ss:SSS'")
     parser.add_argument('end_time', help="The end time of the clip in the format 'mm:ss:SSS'")
+    parser.add_argument('--iphone', action='store_true', help='Convert the clip to iPhone ringtone format')
 
     args = parser.parse_args()
 
@@ -48,13 +56,22 @@ def main():
         # Download the audio
         downloaded_file = download_audio(args.url)
 
-        # Clip the audio segment
-        clip_audio(downloaded_file, args.start_time, args.end_time, 'alarm_clip.mp3')
+        # Define the output file name
+        output_file = 'alarm_clip.m4r' if args.iphone else 'alarm_clip.mp3'
 
-        print("The clip has been successfully saved as 'alarm_clip.mp3'")
+        # Clip the audio segment
+        clip_audio(downloaded_file, args.start_time, args.end_time, output_file)
+
+        # If the iPhone flag is used, convert the file to .m4r format
+        if args.iphone:
+            convert_to_ringtone(output_file, 'alarm_clip.m4r')
+            print("The clip has been successfully saved as 'alarm_clip.m4r'")
+            print("Please transfer this file to your iPhone and set it as a ringtone. Refer to the README for instructions.")
+        else:
+            print("The clip has been successfully saved as 'alarm_clip.mp3'")
+
     except Exception as e:
         print(f"An error occurred: {e}")
-
 
 if __name__ == "__main__":
     main()
